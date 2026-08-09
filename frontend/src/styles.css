@@ -132,7 +132,7 @@
     display: grid;
     gap: 1px;
     width: 100%;
-    max-width: min(84vw, 22rem);
+    max-width: min(84vw, 40rem);
     margin-inline: auto;
 
     aspect-ratio: 1;

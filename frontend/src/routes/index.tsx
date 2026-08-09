@@ -129,7 +129,7 @@ function PlayPage() {
   }, [mode, state.status]);
 
   return (
-    <div className="mx-auto grid max-w-5xl gap-8 px-4 py-10 md:grid-cols-[auto_1fr]">
+    <div className="mx-auto grid max-w-5xl gap-8 px-4 py-10 md:grid-cols-[minmax(0,42rem)_1fr]">
       <div className="space-y-4">
         <SnakeBoard
           gridSize={state.gridSize}
