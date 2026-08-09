@@ -10,18 +10,24 @@ git repository (remote: `AlainFidahoussen/snake-social-club`). All commands belo
 
 - `snake-social-club/frontend/` — the app (TanStack Start / React). This is where nearly all code
   currently lives.
-- `snake-social-club/backend/` — empty scaffold for a future Python backend. Per
-  `snake-social-club/AGENTS.md`, use `uv` for it (`uv sync`, `uv add <package>`, `uv run python <file>`)
-  when it's built out.
+- `snake-social-club/backend/` — a FastAPI implementation of `openapi.yaml`, backed by an
+  in-memory store (no database yet). Not yet wired up to the frontend, which still runs on the
+  mock service in `frontend/src/services/mock.ts`. Use `uv` for it (`uv sync`, `uv add <package>`,
+  `uv run uvicorn app.main:app --reload`, `uv run pytest`).
 - `snake-social-club/openapi.yaml` — the backend API contract (OpenAPI 3.1). It mirrors the
-  `Services` interface in `frontend/src/services/types.ts` and is the source of truth for the
-  future real backend implementation.
+  `Services` interface in `frontend/src/services/types.ts` and is the source of truth the backend
+  implementation satisfies.
 
 The project was scaffolded and is synced with [Lovable](https://lovable.dev): changes made in the
 Lovable editor are committed straight to this repo, so don't be surprised by generated-looking
 files (e.g. `src/lib/lovable-error-reporting.ts`).
 
 ## Commands
+
+A root-level `Makefile` wraps the commands below for both projects — run `make` with no
+arguments from `snake-social-club/` to list targets (`frontend-dev`, `backend-dev`, `dev` for
+both at once, `frontend-test`, `backend-tests`, `test` for both, `install`, `frontend-lint`,
+`frontend-format`, `frontend-build`, `clean`).
 
 Run from `snake-social-club/frontend/`:
 
@@ -36,7 +42,13 @@ npm run lint          # eslint .
 npm run format        # prettier --write .
 ```
 
-There is no backend to build/test yet — `snake-social-club/backend/` is empty.
+Run from `snake-social-club/backend/`:
+
+```sh
+uv sync                                  # install deps
+uv run uvicorn app.main:app --reload      # start dev server on :8000
+uv run pytest                             # run all tests
+```
 
 ## Architecture
 
@@ -59,6 +71,19 @@ runtime forbids I/O or randomness at module scope, so the mock store can't be co
 deterministic testing. `GameMode` is `"walls"` (die on collision) or `"pass-through"` (wrap
 around edges). The mock backend (`mock.ts`) reuses these same functions to simulate bot players
 server-side, so game-rule changes belong in `engine.ts`, not duplicated elsewhere.
+
+### Backend
+
+`backend/app/` implements `openapi.yaml`, split by concern: `models.py` (pydantic schemas
+mirroring the OpenAPI `components.schemas`), `security.py` (PBKDF2 password hashing, bearer
+token generation), `store.py` (the in-memory `Store` dataclass — users, sessions, games, scores
+— plus seed data, attached to `app.state.store`), `deps.py` (the bearer-token auth dependency),
+`errors.py` (`ApiError` + handlers that shape every error response as `{"message": str}`), and
+`routers/` (one router per OpenAPI tag: `auth`, `games`, `leaderboard`). `game_engine.py` ports
+just `createGame`/`placeFood` from `frontend/src/game/engine.ts` — enough to compute a new
+game's initial snake/food placement; actual gameplay (`turn`/`step`) stays client-side, with the
+client publishing results via `updateGame`. The store is in-memory and per-process: restarting
+the server wipes everything back to the seed data.
 
 ### Routing
 
