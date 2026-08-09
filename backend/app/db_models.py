@@ -1,6 +1,6 @@
 """SQLAlchemy ORM tables backing the Store (see store.py)."""
 
-from sqlalchemy import JSON, ForeignKey, LargeBinary
+from sqlalchemy import JSON, BigInteger, ForeignKey, LargeBinary
 from sqlalchemy.orm import Mapped, mapped_column
 
 from .db import Base
@@ -34,8 +34,8 @@ class GameRow(Base):
     food: Mapped[dict[str, int]] = mapped_column(JSON)
     score: Mapped[int]
     status: Mapped[str]
-    started_at: Mapped[int]
-    updated_at: Mapped[int]
+    started_at: Mapped[int] = mapped_column(BigInteger)
+    updated_at: Mapped[int] = mapped_column(BigInteger)
 
 
 class ScoreRow(Base):
@@ -46,4 +46,4 @@ class ScoreRow(Base):
     username: Mapped[str]
     mode: Mapped[str]
     score: Mapped[int]
-    created_at: Mapped[int]
+    created_at: Mapped[int] = mapped_column(BigInteger)
