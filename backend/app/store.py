@@ -73,6 +73,11 @@ class Store:
                 password_salt=user.password_salt,
             )
         )
+        # Flush so the row is visible to the FK check on the session insert that
+        # follows in the same request (no ORM relationship() ties the two for
+        # unit-of-work to order automatically; SQLite doesn't enforce the FK by
+        # default so this only bites on Postgres).
+        self.session.flush()
 
     # sessions
     def get_session_user_id(self, token: str) -> str | None:
