@@ -31,5 +31,5 @@ uv run pytest                 # run tests
 ## Database
 
 Set `DATABASE_URL` to any SQLAlchemy connection string to pick the database (e.g.
-`postgresql+psycopg://user:pass@host/dbname` once Postgres support is added); it defaults to a
-local `sqlite:///./snake_social_club.db` file if unset.
+`postgresql+psycopg://user:pass@host/dbname` for Postgres, using the `psycopg` driver dependency);
+it defaults to a local `sqlite:///./snake_social_club.db` file if unset.
