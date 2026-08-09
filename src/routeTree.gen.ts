@@ -11,6 +11,7 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as LeaderboardRouteImport } from './routes/leaderboard'
+import { Route as WatchIndexRouteImport } from './routes/watch.index'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -22,31 +23,40 @@ const LeaderboardRoute = LeaderboardRouteImport.update({
   path: '/leaderboard',
   getParentRoute: () => rootRouteImport,
 } as any)
+const WatchIndexRoute = WatchIndexRouteImport.update({
+  id: '/watch/',
+  path: '/watch/',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/leaderboard': typeof LeaderboardRoute
+  '/watch/': typeof WatchIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/leaderboard': typeof LeaderboardRoute
+  '/watch': typeof WatchIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/leaderboard': typeof LeaderboardRoute
+  '/watch/': typeof WatchIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/leaderboard'
+  fullPaths: '/' | '/leaderboard' | '/watch/'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/leaderboard'
-  id: '__root__' | '/' | '/leaderboard'
+  to: '/' | '/leaderboard' | '/watch'
+  id: '__root__' | '/' | '/leaderboard' | '/watch/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   LeaderboardRoute: typeof LeaderboardRoute
+  WatchIndexRoute: typeof WatchIndexRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -65,12 +75,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof LeaderboardRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/watch/': {
+      id: '/watch/'
+      path: '/watch'
+      fullPath: '/watch/'
+      preLoaderRoute: typeof WatchIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   LeaderboardRoute: LeaderboardRoute,
+  WatchIndexRoute: WatchIndexRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

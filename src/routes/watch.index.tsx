@@ -3,7 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { SnakeBoard } from "@/components/snake-board";
 import { getServices } from "@/services";
 
-export const Route = createFileRoute("/watch")({
+export const Route = createFileRoute("/watch/")({
   head: () => ({
     meta: [
       { title: "Watch Live Snake Games — Spectate Players | Serpent.io" },
