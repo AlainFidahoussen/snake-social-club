@@ -17,11 +17,24 @@ def test_create_game(client: TestClient, auth_headers: dict[str, str]) -> None:
     assert len(body["snake"]) == 3
 
 
-def test_list_active_games_includes_seed_data(client: TestClient) -> None:
+def test_list_active_games_sorted_by_score_desc(client: TestClient, auth_headers: dict[str, str]) -> None:
+    low = client.post(
+        "/api/v1/games", json={"mode": "walls", "gridSize": 20}, headers=auth_headers
+    ).json()
+    high = client.post(
+        "/api/v1/games", json={"mode": "walls", "gridSize": 20}, headers=auth_headers
+    ).json()
+    client.patch(
+        f"/api/v1/games/{high['id']}",
+        json={"snake": high["snake"], "food": high["food"], "score": 50, "status": "active"},
+        headers=auth_headers,
+    )
+
     response = client.get("/api/v1/games/active")
     assert response.status_code == 200
     games = response.json()
-    assert len(games) >= 3
+    ids = [g["id"] for g in games]
+    assert ids.index(high["id"]) < ids.index(low["id"])
     scores = [g["score"] for g in games]
     assert scores == sorted(scores, reverse=True)
 

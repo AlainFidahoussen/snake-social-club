@@ -19,10 +19,10 @@ def get_current_user(
     token: Annotated[str, Depends(get_bearer_token)],
     store: Annotated[Store, Depends(get_store)],
 ) -> StoredUser:
-    user_id = store.sessions.get(token)
+    user_id = store.get_session_user_id(token)
     if user_id is None:
         raise ApiError(401, "Missing or invalid token.")
-    user = store.users.get(user_id)
+    user = store.get_user(user_id)
     if user is None:
         raise ApiError(401, "Missing or invalid token.")
     return user

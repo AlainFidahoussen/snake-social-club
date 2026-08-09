@@ -38,19 +38,19 @@ def create_game(
         startedAt=now,
         updatedAt=now,
     )
-    store.games[snapshot.id] = snapshot
+    store.save_game(snapshot)
     return snapshot
 
 
 @router.get("/active", response_model=list[GameSnapshot])
 def list_active_games(store: Annotated[Store, Depends(get_store)]) -> list[GameSnapshot]:
-    active = [g for g in store.games.values() if g.status == "active"]
+    active = store.list_active_games()
     return sorted(active, key=lambda g: g.score, reverse=True)
 
 
 @router.get("/{game_id}", response_model=GameSnapshot)
 def get_game(game_id: str, store: Annotated[Store, Depends(get_store)]) -> GameSnapshot:
-    game = store.games.get(game_id)
+    game = store.get_game(game_id)
     if game is None:
         raise ApiError(404, "No game with this id.")
     return game
@@ -63,7 +63,7 @@ def update_game(
     user: Annotated[StoredUser, Depends(get_current_user)],
     store: Annotated[Store, Depends(get_store)],
 ) -> GameSnapshot:
-    existing = store.games.get(game_id)
+    existing = store.get_game(game_id)
     if existing is None:
         raise ApiError(404, "No game with this id.")
     if existing.userId != user.id:
@@ -77,5 +77,5 @@ def update_game(
             "updatedAt": _now_ms(),
         }
     )
-    store.games[game_id] = updated
+    store.save_game(updated)
     return updated

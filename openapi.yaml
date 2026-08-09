@@ -260,7 +260,7 @@ paths:
     get:
       operationId: topScores
       tags: [leaderboard]
-      summary: Top scores for one game mode.
+      summary: Top scores for one game mode, one entry per player.
       parameters:
         - name: mode
           in: query
@@ -276,7 +276,9 @@ paths:
             default: 10
       responses:
         "200":
-          description: Highest scores first, oldest first on ties.
+          description: >
+            Each player's best score for this mode, highest first, oldest
+            first on ties. A player is never listed more than once.
           content:
             application/json:
               schema:

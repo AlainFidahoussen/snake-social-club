@@ -25,6 +25,7 @@ __pycache__/
 *.pyc
 .venv
 .pytest_cache/
+*.db
 
 # Editor directories and files
 .vscode/*

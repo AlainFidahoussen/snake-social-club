@@ -1,14 +1,25 @@
 from fastapi import APIRouter, FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 
+from .db import Base, create_engine_and_session_factory
 from .errors import register_exception_handlers
 from .routers import auth, games, leaderboard
-from .store import Store, seed_store
 
 
-def create_app() -> FastAPI:
+def create_app(database_url: str | None = None) -> FastAPI:
     app = FastAPI(title="Serpent.io API", version="0.1.0")
-    app.state.store = Store()
-    seed_store(app.state.store)
+
+    engine, session_factory = create_engine_and_session_factory(database_url)
+    Base.metadata.create_all(engine)
+    app.state.session_factory = session_factory
+
+    # Dev-only: frontend and backend run on different localhost ports.
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=["*"],
+        allow_methods=["*"],
+        allow_headers=["*"],
+    )
 
     register_exception_handlers(app)
 

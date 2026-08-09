@@ -14,7 +14,7 @@ router = APIRouter(prefix="/auth", tags=["auth"])
 
 def _start_session(store: Store, user: StoredUser) -> Session:
     token = generate_token()
-    store.sessions[token] = user.id
+    store.create_session(token, user.id)
     return Session(token=token, user=User(id=user.id, username=user.username))
 
 
@@ -29,7 +29,7 @@ def sign_up(credentials: Credentials, store: Annotated[Store, Depends(get_store)
         password_hash=digest,
         password_salt=salt,
     )
-    store.users[user.id] = user
+    store.create_user(user)
     return _start_session(store, user)
 
 
@@ -47,7 +47,7 @@ def sign_out(
     _user: Annotated[StoredUser, Depends(get_current_user)],
     store: Annotated[Store, Depends(get_store)],
 ) -> Response:
-    del store.sessions[token]
+    store.delete_session(token)
     return Response(status_code=204)
 
 

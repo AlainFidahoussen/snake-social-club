@@ -25,7 +25,7 @@ def submit_score(
         score=body.score,
         createdAt=int(time.time() * 1000),
     )
-    store.scores.append(entry)
+    store.add_score(entry)
     return entry
 
 
@@ -35,5 +35,13 @@ def top_scores(
     store: Annotated[Store, Depends(get_store)],
     limit: Annotated[int, Query(ge=1)] = 10,
 ) -> list[ScoreEntry]:
-    matching = [s for s in store.scores if s.mode == mode]
-    return sorted(matching, key=lambda s: (-s.score, s.createdAt))[:limit]
+    """Each player's best run for this mode, not every run — a player who has
+    finished many games should only take one leaderboard slot."""
+    best_by_user: dict[str, ScoreEntry] = {}
+    for entry in store.list_scores(mode):
+        current = best_by_user.get(entry.userId)
+        if current is None or entry.score > current.score:
+            best_by_user[entry.userId] = entry
+        elif entry.score == current.score and entry.createdAt < current.createdAt:
+            best_by_user[entry.userId] = entry
+    return sorted(best_by_user.values(), key=lambda s: (-s.score, s.createdAt))[:limit]

@@ -10,10 +10,9 @@ git repository (remote: `AlainFidahoussen/snake-social-club`). All commands belo
 
 - `snake-social-club/frontend/` — the app (TanStack Start / React). This is where nearly all code
   currently lives.
-- `snake-social-club/backend/` — a FastAPI implementation of `openapi.yaml`, backed by an
-  in-memory store (no database yet). Not yet wired up to the frontend, which still runs on the
-  mock service in `frontend/src/services/mock.ts`. Use `uv` for it (`uv sync`, `uv add <package>`,
-  `uv run uvicorn app.main:app --reload`, `uv run pytest`).
+- `snake-social-club/backend/` — a FastAPI implementation of `openapi.yaml`, backed by a
+  SQLAlchemy/SQLite database. The frontend talks to it directly over HTTP. Use `uv` for it
+  (`uv sync`, `uv add <package>`, `uv run uvicorn app.main:app --reload`, `uv run pytest`).
 - `snake-social-club/openapi.yaml` — the backend API contract (OpenAPI 3.1). It mirrors the
   `Services` interface in `frontend/src/services/types.ts` and is the source of truth the backend
   implementation satisfies.
@@ -56,34 +55,35 @@ uv run pytest                             # run all tests
 
 Every backend call in the frontend goes through a single `Services` object
 (`frontend/src/services/types.ts`), obtained via `getServices()` in `frontend/src/services/index.ts`.
-It's currently backed by an in-memory/localStorage mock (`frontend/src/services/mock.ts`) so the
-whole app runs without a real backend. When a real backend exists, swap the factory in
-`services/index.ts` for an HTTP implementation — no component code should need to change.
-`openapi.yaml` at the repo root defines the contract that implementation must satisfy.
+It's backed by `frontend/src/services/http.ts`, which calls the FastAPI backend at
+`VITE_API_BASE_URL` (default `http://localhost:8000/api/v1`) and keeps the session token in
+`localStorage`. `openapi.yaml` at the repo root defines the contract that implementation satisfies.
 
-`getServices()` is lazy (`instance ??= createMockServices()`) deliberately: TanStack Start's SSR
-runtime forbids I/O or randomness at module scope, so the mock store can't be constructed eagerly.
+`getServices()` is lazy (`instance ??= createHttpServices()`) deliberately: TanStack Start's SSR
+runtime forbids I/O or randomness at module scope, so nothing can be constructed eagerly.
 
 ### Game engine
 
 `frontend/src/game/engine.ts` is the core Snake logic as pure, framework-free functions
 (`createGame`, `turn`, `step`, `placeFood`), each taking an injectable `Rand` function for
 deterministic testing. `GameMode` is `"walls"` (die on collision) or `"pass-through"` (wrap
-around edges). The mock backend (`mock.ts`) reuses these same functions to simulate bot players
-server-side, so game-rule changes belong in `engine.ts`, not duplicated elsewhere.
+around edges). `backend/app/game_engine.py` ports just `createGame`/`placeFood` — enough to
+compute a new game's initial snake/food placement; actual gameplay (`turn`/`step`) stays
+client-side, with the client publishing results via `updateGame`.
 
 ### Backend
 
 `backend/app/` implements `openapi.yaml`, split by concern: `models.py` (pydantic schemas
 mirroring the OpenAPI `components.schemas`), `security.py` (PBKDF2 password hashing, bearer
-token generation), `store.py` (the in-memory `Store` dataclass — users, sessions, games, scores
-— plus seed data, attached to `app.state.store`), `deps.py` (the bearer-token auth dependency),
-`errors.py` (`ApiError` + handlers that shape every error response as `{"message": str}`), and
-`routers/` (one router per OpenAPI tag: `auth`, `games`, `leaderboard`). `game_engine.py` ports
-just `createGame`/`placeFood` from `frontend/src/game/engine.ts` — enough to compute a new
-game's initial snake/food placement; actual gameplay (`turn`/`step`) stays client-side, with the
-client publishing results via `updateGame`. The store is in-memory and per-process: restarting
-the server wipes everything back to the seed data.
+token generation), `db.py` (SQLAlchemy engine/session-factory setup, driven by the `DATABASE_URL`
+env var — defaults to a local SQLite file — so swapping in Postgres later is a config change, not
+a code change), `db_models.py` (the SQLAlchemy ORM tables: `UserRow`, `SessionRow`, `GameRow`,
+`ScoreRow`), `store.py` (the `Store` repository — users, sessions, games, scores — wrapping a
+SQLAlchemy session; `get_store` opens one session per request via `app.state.session_factory` and
+commits/rolls back around it), `deps.py` (the bearer-token auth dependency), `errors.py`
+(`ApiError` + handlers that shape every error response as `{"message": str}`), and `routers/`
+(one router per OpenAPI tag: `auth`, `games`, `leaderboard`). The database persists across
+restarts.
 
 ### Routing
 

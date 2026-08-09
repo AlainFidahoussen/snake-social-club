@@ -28,14 +28,16 @@ def test_signup_rejects_short_password(client: TestClient) -> None:
     assert "message" in response.json()
 
 
-def test_signin_with_seeded_user(client: TestClient) -> None:
-    response = client.post("/api/v1/auth/signin", json={"username": "pixelviper", "password": "snakepit123"})
+def test_signin_with_existing_user(client: TestClient) -> None:
+    client.post("/api/v1/auth/signup", json={"username": "returningplayer", "password": "hunter22"})
+    response = client.post("/api/v1/auth/signin", json={"username": "returningplayer", "password": "hunter22"})
     assert response.status_code == 200
-    assert response.json()["user"]["username"] == "pixelviper"
+    assert response.json()["user"]["username"] == "returningplayer"
 
 
 def test_signin_rejects_wrong_password(client: TestClient) -> None:
-    response = client.post("/api/v1/auth/signin", json={"username": "pixelviper", "password": "wrongpass"})
+    client.post("/api/v1/auth/signup", json={"username": "returningplayer", "password": "hunter22"})
+    response = client.post("/api/v1/auth/signin", json={"username": "returningplayer", "password": "wrongpass"})
     assert response.status_code == 401
     assert response.json() == {"message": "Invalid username or password."}
 

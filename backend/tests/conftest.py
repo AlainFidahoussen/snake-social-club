@@ -8,7 +8,7 @@ from app.main import create_app
 
 @pytest.fixture
 def client() -> Iterator[TestClient]:
-    app = create_app()
+    app = create_app(database_url="sqlite:///:memory:")
     with TestClient(app) as test_client:
         yield test_client
 
