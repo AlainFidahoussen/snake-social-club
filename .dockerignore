@@ -1,0 +1,13 @@
+.git
+
+frontend/node_modules
+frontend/dist
+frontend/.output
+frontend/.vinxi
+frontend/.nitro
+
+backend/.venv
+backend/__pycache__
+backend/**/__pycache__
+backend/.pytest_cache
+backend/*.db
