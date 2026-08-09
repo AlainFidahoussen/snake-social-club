@@ -11,6 +11,10 @@ COPY frontend/package.json frontend/package-lock.json ./
 RUN npm ci --legacy-peer-deps
 
 COPY frontend/ ./
+# Same-origin relative URL: the backend serves the frontend itself now, so API calls should go
+# to whatever host/port the browser already loaded the page from, not a hardcoded one baked in
+# at build time (see frontend/src/services/http.ts's VITE_API_BASE_URL default).
+ENV VITE_API_BASE_URL=/api/v1
 # Nitro's static preset currently exits non-zero after prerendering due to an upstream bug
 # (https://github.com/nitrojs/nitro/issues/3843); the prerendered files are already written
 # correctly by that point, so verify the real output instead of trusting the exit code.
