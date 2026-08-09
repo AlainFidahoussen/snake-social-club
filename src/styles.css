@@ -131,7 +131,10 @@
   .board {
     display: grid;
     gap: 1px;
-    width: min(84vw, 22rem);
+    width: 100%;
+    max-width: min(84vw, 22rem);
+    margin-inline: auto;
+
     aspect-ratio: 1;
     padding: 4px;
     border-radius: var(--radius);
