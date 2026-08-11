@@ -64,7 +64,11 @@ Resources:
               StringEquals:
                 token.actions.githubusercontent.com:aud: sts.amazonaws.com
               StringLike:
-                token.actions.githubusercontent.com:sub: !Sub "repo:${GitHubOrg}/${GitHubRepo}:ref:refs/heads/main"
+                # GitHub's OIDC `sub` claim embeds the org/repo's immutable numeric IDs
+                # (repo:org@orgID/repo@repoID:ref:...) rather than just their names, so
+                # renaming/transferring either doesn't silently inherit an old trust grant.
+                # The `@*` wildcards match those IDs without hardcoding them here.
+                token.actions.githubusercontent.com:sub: !Sub "repo:${GitHubOrg}@*/${GitHubRepo}@*:ref:refs/heads/main"
       Policies:
         - PolicyName: DeployCloudFormationStack
           PolicyDocument:
