@@ -5,10 +5,7 @@ FROM node:22-slim AS frontend-build
 WORKDIR /app/frontend
 
 COPY frontend/package.json frontend/package-lock.json ./
-# --legacy-peer-deps: @lovable.dev/vite-tanstack-config's peerDependency range on `nitro` only
-# matches its own exact beta patch version (a semver quirk with date-based prerelease patches),
-# so it rejects the newer nitro pinned in package.json even though it resolves fine in practice.
-RUN npm ci --legacy-peer-deps
+RUN npm ci
 
 COPY frontend/ ./
 # Same-origin relative URL: the backend serves the frontend itself now, so API calls should go

@@ -17,10 +17,6 @@ git repository (remote: `AlainFidahoussen/snake-social-club`). All commands belo
   `Services` interface in `frontend/src/services/types.ts` and is the source of truth the backend
   implementation satisfies.
 
-The project was scaffolded and is synced with [Lovable](https://lovable.dev): changes made in the
-Lovable editor are committed straight to this repo, so don't be surprised by generated-looking
-files (e.g. `src/lib/lovable-error-reporting.ts`).
-
 ## Commands
 
 A root-level `Makefile` wraps the commands below for both projects — run `make` with no
