@@ -1,0 +1,212 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: >
+  One-time bootstrap: an OIDC trust between AWS and GitHub Actions, plus an IAM role
+  that only the `AlainFidahoussen/snake-social-club` workflow (on pushes to `main`) can
+  assume, scoped to the permissions `deploy/cloudformation.yaml` needs. Deploy this
+  once, by hand, with your own AWS credentials — it is not part of the CI pipeline.
+
+Parameters:
+  GitHubOrg:
+    Type: String
+    Default: AlainFidahoussen
+  GitHubRepo:
+    Type: String
+    Default: snake-social-club
+  CreateOIDCProvider:
+    Type: String
+    AllowedValues: ["true", "false"]
+    Default: "true"
+    Description: >
+      Set to "false" if this AWS account already has an OIDC provider for
+      token.actions.githubusercontent.com (AWS allows only one per account) —
+      e.g. from a previous project. Check first with:
+      aws iam list-open-id-connect-providers
+  ExistingOIDCProviderArn:
+    Type: String
+    Default: ""
+    Description: >
+      Only used when CreateOIDCProvider is "false" — the ARn of the existing
+      token.actions.githubusercontent.com provider, from the command above.
+
+Conditions:
+  ShouldCreateProvider: !Equals [!Ref CreateOIDCProvider, "true"]
+
+Resources:
+  GitHubOIDCProvider:
+    Type: AWS::IAM::OIDCProvider
+    Condition: ShouldCreateProvider
+    Properties:
+      Url: https://token.actions.githubusercontent.com
+      ClientIdList:
+        - sts.amazonaws.com
+      ThumbprintList:
+        # GitHub's OIDC intermediate CA thumbprints (AWS validates the chain against
+        # these; GitHub has rotated this before, so if assume-role starts failing with
+        # a trust error, check https://github.blog for an updated value).
+        - 6938fd4d98bab03faadb97b34396831e3780aea
+        - 1c58a3a8518e8759bf075b76b750d4f2df264fcd
+
+  GitHubActionsDeployRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: snake-social-club-github-deploy
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Federated: !If
+                - ShouldCreateProvider
+                - !Ref GitHubOIDCProvider
+                - !Ref ExistingOIDCProviderArn
+            Action: sts:AssumeRoleWithWebIdentity
+            Condition:
+              StringEquals:
+                token.actions.githubusercontent.com:aud: sts.amazonaws.com
+              StringLike:
+                token.actions.githubusercontent.com:sub: !Sub "repo:${GitHubOrg}/${GitHubRepo}:ref:refs/heads/main"
+      Policies:
+        - PolicyName: DeployCloudFormationStack
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              # CloudFormation: manage the app stack itself.
+              - Effect: Allow
+                Action:
+                  - cloudformation:CreateStack
+                  - cloudformation:UpdateStack
+                  - cloudformation:DescribeStacks
+                  - cloudformation:DescribeStackEvents
+                  - cloudformation:DescribeStackResource
+                  - cloudformation:DescribeStackResources
+                  - cloudformation:GetTemplate
+                  - cloudformation:GetTemplateSummary
+                  - cloudformation:ValidateTemplate
+                  - cloudformation:ListStackResources
+                  - cloudformation:CreateChangeSet
+                  - cloudformation:DescribeChangeSet
+                  - cloudformation:ExecuteChangeSet
+                  - cloudformation:DeleteChangeSet
+                Resource: !Sub "arn:aws:cloudformation:*:${AWS::AccountId}:stack/snake-social-club/*"
+
+              # EC2/VPC networking + the app instance. Most of these actions don't
+              # support resource-level ARN scoping in IAM, so this is scoped by
+              # action (only what deploy/cloudformation.yaml uses), not by resource.
+              - Effect: Allow
+                Action:
+                  - ec2:CreateVpc
+                  - ec2:DeleteVpc
+                  - ec2:DescribeVpcs
+                  - ec2:DescribeVpcAttribute
+                  - ec2:ModifyVpcAttribute
+                  - ec2:CreateInternetGateway
+                  - ec2:DeleteInternetGateway
+                  - ec2:DescribeInternetGateways
+                  - ec2:AttachInternetGateway
+                  - ec2:DetachInternetGateway
+                  - ec2:CreateSubnet
+                  - ec2:DeleteSubnet
+                  - ec2:DescribeSubnets
+                  - ec2:ModifySubnetAttribute
+                  - ec2:CreateRouteTable
+                  - ec2:DeleteRouteTable
+                  - ec2:DescribeRouteTables
+                  - ec2:CreateRoute
+                  - ec2:DeleteRoute
+                  - ec2:ReplaceRoute
+                  - ec2:AssociateRouteTable
+                  - ec2:DisassociateRouteTable
+                  - ec2:ReplaceRouteTableAssociation
+                  - ec2:CreateSecurityGroup
+                  - ec2:DeleteSecurityGroup
+                  - ec2:DescribeSecurityGroups
+                  - ec2:AuthorizeSecurityGroupIngress
+                  - ec2:RevokeSecurityGroupIngress
+                  - ec2:AuthorizeSecurityGroupEgress
+                  - ec2:RevokeSecurityGroupEgress
+                  - ec2:RunInstances
+                  - ec2:TerminateInstances
+                  - ec2:DescribeInstances
+                  - ec2:DescribeInstanceAttribute
+                  - ec2:ModifyInstanceAttribute
+                  - ec2:DescribeInstanceStatus
+                  - ec2:DescribeImages
+                  - ec2:DescribeAvailabilityZones
+                  - ec2:AllocateAddress
+                  - ec2:ReleaseAddress
+                  - ec2:DescribeAddresses
+                  - ec2:AssociateAddress
+                  - ec2:DisassociateAddress
+                  - ec2:CreateTags
+                  - ec2:DeleteTags
+                  - ec2:DescribeTags
+                Resource: "*"
+
+              # SSM public parameter lookup for the AMI ID (`{{resolve:ssm:...}}`).
+              - Effect: Allow
+                Action:
+                  - ssm:GetParameters
+                  - ssm:GetParameter
+                Resource: "arn:aws:ssm:*::parameter/aws/service/ami-amazon-linux-latest/*"
+
+              # Aurora Serverless v2 cluster/instance.
+              - Effect: Allow
+                Action:
+                  - rds:CreateDBSubnetGroup
+                  - rds:DeleteDBSubnetGroup
+                  - rds:DescribeDBSubnetGroups
+                  - rds:ModifyDBSubnetGroup
+                  - rds:CreateDBCluster
+                  - rds:DeleteDBCluster
+                  - rds:DescribeDBClusters
+                  - rds:ModifyDBCluster
+                  - rds:CreateDBInstance
+                  - rds:DeleteDBInstance
+                  - rds:DescribeDBInstances
+                  - rds:ModifyDBInstance
+                  - rds:AddTagsToResource
+                  - rds:ListTagsForResource
+                Resource: "*"
+
+              # DB credentials secret (`{{resolve:secretsmanager:...}}` needs GetSecretValue too).
+              - Effect: Allow
+                Action:
+                  - secretsmanager:CreateSecret
+                  - secretsmanager:DeleteSecret
+                  - secretsmanager:DescribeSecret
+                  - secretsmanager:GetSecretValue
+                  - secretsmanager:UpdateSecret
+                  - secretsmanager:TagResource
+                Resource: !Sub "arn:aws:secretsmanager:*:${AWS::AccountId}:secret:snake-social-club-*"
+
+              # The EC2 instance's own role + instance profile (EC2Role/EC2InstanceProfile
+              # in deploy/cloudformation.yaml). iam:PassRole is what lets CloudFormation
+              # attach that role to the EC2 instance.
+              - Effect: Allow
+                Action:
+                  - iam:CreateRole
+                  - iam:DeleteRole
+                  - iam:GetRole
+                  - iam:PassRole
+                  - iam:TagRole
+                  - iam:PutRolePolicy
+                  - iam:DeleteRolePolicy
+                  - iam:GetRolePolicy
+                  - iam:AttachRolePolicy
+                  - iam:DetachRolePolicy
+                  - iam:ListAttachedRolePolicies
+                  - iam:ListRolePolicies
+                  - iam:CreateInstanceProfile
+                  - iam:DeleteInstanceProfile
+                  - iam:GetInstanceProfile
+                  - iam:AddRoleToInstanceProfile
+                  - iam:RemoveRoleFromInstanceProfile
+                  - iam:ListInstanceProfilesForRole
+                Resource:
+                  - !Sub "arn:aws:iam::${AWS::AccountId}:role/snake-social-club-*"
+                  - !Sub "arn:aws:iam::${AWS::AccountId}:instance-profile/snake-social-club-*"
+
+Outputs:
+  RoleArn:
+    Description: Put this in the GitHub repo secret AWS_DEPLOY_ROLE_ARN
+    Value: !GetAtt GitHubActionsDeployRole.Arn
