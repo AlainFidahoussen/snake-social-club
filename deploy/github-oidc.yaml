@@ -183,6 +183,13 @@ Resources:
                   - secretsmanager:TagResource
                 Resource: !Sub "arn:aws:secretsmanager:*:${AWS::AccountId}:secret:snake-social-club-*"
 
+              # GenerateSecretString (used by DBSecret) calls this under the hood; it has no
+              # resource-level permissions, so it can't be scoped to the secret's ARN like above.
+              - Effect: Allow
+                Action:
+                  - secretsmanager:GetRandomPassword
+                Resource: "*"
+
               # The EC2 instance's own role + instance profile (EC2Role/EC2InstanceProfile
               # in deploy/cloudformation.yaml). iam:PassRole is what lets CloudFormation
               # attach that role to the EC2 instance.
